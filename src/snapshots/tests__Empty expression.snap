@@ -1,0 +1,16 @@
+---
+source: src/lib.rs
+expression: "parse(\"\")"
+---
+Err(
+    Errors {
+        position: 0,
+        errors: [
+            Unexpected(
+                Static(
+                    "no host found",
+                ),
+            ),
+        ],
+    },
+)

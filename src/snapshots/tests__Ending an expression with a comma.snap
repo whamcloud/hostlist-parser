@@ -1,0 +1,16 @@
+---
+source: src/lib.rs
+expression: "parse(\"hostname[1],\")"
+---
+Err(
+    Errors {
+        position: 12,
+        errors: [
+            Unexpected(
+                Static(
+                    "no host found",
+                ),
+            ),
+        ],
+    },
+)

@@ -1,0 +1,11 @@
+---
+source: src/lib.rs
+expression: "parse(\"hostname[7-5]\")"
+---
+Ok(
+    {
+        "hostname5",
+        "hostname6",
+        "hostname7",
+    },
+)

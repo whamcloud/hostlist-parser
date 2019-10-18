@@ -1,0 +1,26 @@
+---
+source: src/lib.rs
+expression: "parse(\"hostname[1\")"
+---
+Err(
+    Errors {
+        position: 10,
+        errors: [
+            Unexpected(
+                Static(
+                    "end of input",
+                ),
+            ),
+            Expected(
+                Token(
+                    ',',
+                ),
+            ),
+            Expected(
+                Token(
+                    ']',
+                ),
+            ),
+        ],
+    },
+)

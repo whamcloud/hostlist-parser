@@ -1,0 +1,26 @@
+---
+source: src/lib.rs
+expression: "parse(\"test[00☃-002].localdomain\")"
+---
+Err(
+    Errors {
+        position: 7,
+        errors: [
+            Unexpected(
+                Token(
+                    '☃',
+                ),
+            ),
+            Expected(
+                Token(
+                    ',',
+                ),
+            ),
+            Expected(
+                Token(
+                    ']',
+                ),
+            ),
+        ],
+    },
+)

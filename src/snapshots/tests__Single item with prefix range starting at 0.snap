@@ -1,0 +1,11 @@
+---
+source: src/lib.rs
+expression: "parse(\"test[000-002].localdomain\")"
+---
+Ok(
+    {
+        "test000.localdomain",
+        "test001.localdomain",
+        "test002.localdomain",
+    },
+)

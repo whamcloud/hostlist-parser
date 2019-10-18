@@ -1,0 +1,14 @@
+---
+source: src/lib.rs
+expression: "range_digits().easy_parse(\"001-003\")"
+---
+Ok(
+    (
+        Range(
+            2,
+            1,
+            3,
+        ),
+        "",
+    ),
+)

@@ -1,0 +1,16 @@
+---
+source: src/lib.rs
+expression: "range().easy_parse(\"[01-10]\")"
+---
+Ok(
+    (
+        [
+            Range(
+                1,
+                1,
+                10,
+            ),
+        ],
+        "",
+    ),
+)
