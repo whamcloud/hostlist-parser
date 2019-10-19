@@ -387,7 +387,7 @@ mod tests {
         );
 
         assert_debug_snapshot!(
-            "Multiple ranges per hostname in which the difference is > 1",
+            "Multiple ranges per hostname in which the difference is gt 1",
             parse("hostname[1,2-3].iml[2,3].com,hostname[4,5].iml[3,4].com")
         );
 
@@ -426,9 +426,12 @@ mod tests {
             parse("test[000-002].localdomain")
         );
 
-        assert_debug_snapshot!("Three items in equivalent format in which the difference between ranges is 1. These ranges can be combined.", parse(
-            "hostname[2,6,7].iml.com,hostname[10,11-12,2-3,5].iml.com, hostname[15-17].iml.com"
-        ));
+        assert_debug_snapshot!(
+            "Combined Ranges",
+            parse(
+                "hostname[2,6,7].iml.com,hostname[10,11-12,2-3,5].iml.com, hostname[15-17].iml.com"
+            )
+        );
 
         assert_debug_snapshot!(
             "Padding with a single and double digit number",
