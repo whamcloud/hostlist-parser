@@ -1,0 +1,16 @@
+---
+source: src/lib.rs
+expression: "parse(\"hostname[01-009]\")"
+---
+Err(
+    Errors {
+        position: 9,
+        errors: [
+            Unexpected(
+                Static(
+                    "larger end padding",
+                ),
+            ),
+        ],
+    },
+)

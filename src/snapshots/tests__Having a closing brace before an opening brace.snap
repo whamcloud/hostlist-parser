@@ -1,0 +1,41 @@
+---
+source: src/lib.rs
+expression: "parse(\"hostname]00[asdf\")"
+---
+Err(
+    Errors {
+        position: 8,
+        errors: [
+            Expected(
+                Token(
+                    '[',
+                ),
+            ),
+            Expected(
+                Static(
+                    "whitespaces",
+                ),
+            ),
+            Expected(
+                Static(
+                    "letter or digit",
+                ),
+            ),
+            Expected(
+                Token(
+                    '-',
+                ),
+            ),
+            Expected(
+                Token(
+                    '.',
+                ),
+            ),
+            Unexpected(
+                Token(
+                    'h',
+                ),
+            ),
+        ],
+    },
+)

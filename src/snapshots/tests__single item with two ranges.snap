@@ -1,0 +1,14 @@
+---
+source: src/lib.rs
+expression: "parse(\"hostname[6,7]-[9-11].iml.com\")"
+---
+Ok(
+    {
+        "hostname6-10.iml.com",
+        "hostname6-11.iml.com",
+        "hostname6-9.iml.com",
+        "hostname7-10.iml.com",
+        "hostname7-11.iml.com",
+        "hostname7-9.iml.com",
+    },
+)

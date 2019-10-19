@@ -1,0 +1,9 @@
+---
+source: src/lib.rs
+expression: "parse(\"oss1.local\")"
+---
+Ok(
+    {
+        "oss1.local",
+    },
+)

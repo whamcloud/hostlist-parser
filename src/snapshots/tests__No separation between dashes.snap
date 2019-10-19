@@ -1,0 +1,26 @@
+---
+source: src/lib.rs
+expression: "parse(\"hostname[1--2].iml.com\")"
+---
+Err(
+    Errors {
+        position: 10,
+        errors: [
+            Unexpected(
+                Token(
+                    '-',
+                ),
+            ),
+            Expected(
+                Token(
+                    ',',
+                ),
+            ),
+            Expected(
+                Token(
+                    ']',
+                ),
+            ),
+        ],
+    },
+)

@@ -1,0 +1,16 @@
+---
+source: src/lib.rs
+expression: "hostlists().easy_parse(\"oss1.local\")"
+---
+Ok(
+    (
+        [
+            [
+                String(
+                    "oss1.local",
+                ),
+            ],
+        ],
+        "",
+    ),
+)

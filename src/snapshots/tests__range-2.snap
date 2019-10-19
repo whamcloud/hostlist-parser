@@ -1,0 +1,22 @@
+---
+source: src/lib.rs
+expression: "range().easy_parse(\"[1,2,3-5]\")"
+---
+Ok(
+    (
+        [
+            Disjoint(
+                [
+                    1,
+                    2,
+                ],
+            ),
+            Range(
+                0,
+                3,
+                5,
+            ),
+        ],
+        "",
+    ),
+)

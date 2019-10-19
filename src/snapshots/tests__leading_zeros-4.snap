@@ -1,0 +1,13 @@
+---
+source: src/lib.rs
+expression: "leading_zeros().easy_parse(\"00\")"
+---
+Ok(
+    (
+        (
+            1,
+            0,
+        ),
+        "",
+    ),
+)

@@ -1,0 +1,10 @@
+---
+source: src/lib.rs
+expression: "parse(\"hostname1.iml.com, hostname2.iml.com\")"
+---
+Ok(
+    {
+        "hostname1.iml.com",
+        "hostname2.iml.com",
+    },
+)
