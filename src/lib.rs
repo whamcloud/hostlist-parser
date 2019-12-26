@@ -6,15 +6,15 @@ mod structures;
 
 use crate::structures::{flatten_ranges, Part, RangeOutput};
 use combine::{
-    attempt, between,
-    char::{alpha_num, digit, spaces},
-    choice,
-    combinator::ignore,
-    eof,
+    attempt, between, choice, eof,
     error::{ParseError, StreamError},
     many1, not_followed_by, optional,
-    parser::repeat::repeat_until,
-    parser::EasyParser,
+    parser::{
+        char::{alpha_num, digit, spaces},
+        combinator::ignore,
+        repeat::repeat_until,
+        EasyParser,
+    },
     sep_by1,
     stream::{Stream, StreamErrorFor},
     token, Parser,
