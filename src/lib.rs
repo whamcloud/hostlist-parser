@@ -470,7 +470,7 @@ mod tests {
         assert_debug_snapshot!("Ending an expression with a comma", parse("hostname[1],"));
 
         assert_debug_snapshot!(
-            "Beginning and ending prefixes that don't match with two single digit numbers",
+            "Beginning and ending prefixes don't match two single digit numbers",
             parse("hostname[01-009]")
         );
 
