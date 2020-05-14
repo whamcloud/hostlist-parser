@@ -1,6 +1,6 @@
 # hostlist-parser
 
-![Crates.io](https://img.shields.io/crates/v/hostlist-parser) ![docs.rs](https://docs.rs/hostlist-parser/badge.svg?version=0.1.0)
+![Crates.io](https://img.shields.io/crates/v/hostlist-parser) ![docs.rs](https://docs.rs/hostlist-parser/badge.svg?version=0.1.3)
 
 Parses hostlist expressions into a BtreeSet of Strings
 
