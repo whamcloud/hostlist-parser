@@ -19,7 +19,7 @@ use combine::{
     stream::{Stream, StreamErrorFor},
     token, Parser,
 };
-use itertools::Itertools;
+use itertools::Itertools as _;
 
 fn comma<I>() -> impl Parser<I, Output = char>
 where
