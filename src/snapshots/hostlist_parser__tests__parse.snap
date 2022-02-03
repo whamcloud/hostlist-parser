@@ -1,10 +1,12 @@
 ---
 source: src/lib.rs
+assertion_line: 314
 expression: "parse(\"oss[1,2].local\")"
+
 ---
 Ok(
-    {
+    [
         "oss1.local",
         "oss2.local",
-    },
+    ],
 )

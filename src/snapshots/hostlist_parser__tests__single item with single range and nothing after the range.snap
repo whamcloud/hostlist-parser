@@ -1,9 +1,11 @@
 ---
 source: src/lib.rs
+assertion_line: 340
 expression: "parse(\"hostname[6]\")"
+
 ---
 Ok(
-    {
+    [
         "hostname6",
-    },
+    ],
 )

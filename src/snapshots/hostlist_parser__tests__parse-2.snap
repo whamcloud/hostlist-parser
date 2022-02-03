@@ -1,9 +1,11 @@
 ---
 source: src/lib.rs
+assertion_line: 316
 expression: "parse(\"oss1.local\")"
+
 ---
 Ok(
-    {
+    [
         "oss1.local",
-    },
+    ],
 )

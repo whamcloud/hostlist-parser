@@ -1,4 +1,4 @@
-// Copyright (c) 2019 DDN. All rights reserved.
+// Copyright (c) 2022 DDN. All rights reserved.
 // Use of this source code is governed by a MIT-style
 // license that can be found in the LICENSE file.
 
@@ -20,7 +20,6 @@ use combine::{
     token, Parser,
 };
 use itertools::Itertools;
-use std::collections::BTreeSet;
 
 fn comma<I>() -> impl Parser<I, Output = char>
 where
@@ -116,12 +115,20 @@ where
     ))
     .and_then(|((start_zeros, start), _, (end_zeros, end))| {
         let mut xs = vec![start, end];
-        xs.sort();
+        xs.sort_unstable();
 
-        let (start, end, start_zeros, end_zeros) = if start > end {
-            (end, start, end_zeros, start_zeros)
+        let (range, start_zeros, end_zeros) = if start > end {
+            (
+                RangeOutput::RangeReversed(end_zeros, end, start),
+                end_zeros,
+                start_zeros,
+            )
         } else {
-            (start, end, start_zeros, end_zeros)
+            (
+                RangeOutput::Range(start_zeros, start, end),
+                start_zeros,
+                end_zeros,
+            )
         };
 
         if end_zeros > start_zeros {
@@ -129,7 +136,7 @@ where
                 "larger end padding",
             ))
         } else {
-            Ok(RangeOutput::Range(start_zeros, start, end))
+            Ok(range)
         }
     })
 }
@@ -202,14 +209,12 @@ where
     sep_by1(hostlist(), optional_spaces().with(comma()))
 }
 
-pub fn parse(
-    input: &str,
-) -> Result<BTreeSet<String>, combine::stream::easy::Errors<char, &str, usize>> {
+pub fn parse(input: &str) -> Result<Vec<String>, combine::stream::easy::Errors<char, &str, usize>> {
     let (hosts, _) = hostlists()
         .easy_parse(input)
         .map_err(|err| err.map_position(|p| p.translate_position(input)))?;
 
-    let mut xs = BTreeSet::new();
+    let mut xs = Vec::new();
 
     for parts in hosts {
         let x_prod: Vec<_> = parts
@@ -231,7 +236,7 @@ pub fn parse(
                 }
             }
 
-            xs.insert(s);
+            xs.push(s);
         } else {
             for ys in x_prod {
                 let mut it = ys.iter();
@@ -245,12 +250,12 @@ pub fn parse(
                     }
                 }
 
-                xs.insert(s);
+                xs.push(s);
             }
         }
     }
 
-    Ok(xs)
+    Ok(xs.into_iter().unique().collect())
 }
 
 #[cfg(test)]

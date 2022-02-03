@@ -1,10 +1,12 @@
 ---
 source: src/lib.rs
+assertion_line: 281
 expression: "range_digits().easy_parse(\"100-0\")"
+
 ---
 Ok(
     (
-        Range(
+        RangeReversed(
             0,
             0,
             100,
