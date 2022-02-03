@@ -1,19 +1,24 @@
-// Copyright (c) 2019 DDN. All rights reserved.
+// Copyright (c) 2022 DDN. All rights reserved.
 // Use of this source code is governed by a MIT-style
 // license that can be found in the LICENSE file.
 
 #[derive(Debug, Clone)]
-pub enum RangeOutput {
+pub(crate) enum RangeOutput {
     Range(usize, u64, u64),
+    RangeReversed(usize, u64, u64),
     Disjoint(Vec<u64>),
 }
 
 impl RangeOutput {
-    pub fn iter(&self) -> RangeOutputIter {
+    pub(crate) fn iter(&self) -> RangeOutputIter {
         match self {
             RangeOutput::Range(prefix, start, end) => RangeOutputIter {
                 prefix: *prefix,
                 iterator: Box::new(*start..=*end),
+            },
+            RangeOutput::RangeReversed(prefix, end, start) => RangeOutputIter {
+                prefix: *prefix,
+                iterator: Box::new((*end..=*start).rev()),
             },
             RangeOutput::Disjoint(xs) => RangeOutputIter {
                 prefix: 0,
@@ -23,7 +28,7 @@ impl RangeOutput {
     }
 }
 
-pub struct RangeOutputIter {
+pub(crate) struct RangeOutputIter {
     prefix: usize,
     iterator: Box<dyn Iterator<Item = u64>>,
 }
@@ -38,18 +43,18 @@ impl Iterator for RangeOutputIter {
     }
 }
 
-pub fn format_num_prefix(num: u64, prefix: usize) -> String {
+pub(crate) fn format_num_prefix(num: u64, prefix: usize) -> String {
     format!("{:0>width$}", num, width = prefix + 1)
 }
 
 #[derive(Debug, Clone)]
-pub enum Part {
+pub(crate) enum Part {
     String(String),
     Range(Vec<RangeOutput>),
 }
 
 impl Part {
-    pub fn get_ranges(&self) -> Option<&Vec<RangeOutput>> {
+    pub(crate) fn get_ranges(&self) -> Option<&Vec<RangeOutput>> {
         match self {
             Part::Range(xs) => Some(xs),
             _ => None,
@@ -57,7 +62,7 @@ impl Part {
     }
 }
 
-pub fn flatten_ranges(xs: &[RangeOutput]) -> Vec<String> {
+pub(crate) fn flatten_ranges(xs: &[RangeOutput]) -> Vec<String> {
     xs.iter().map(|x| x.iter()).flatten().collect()
 }
 

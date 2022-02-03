@@ -1,9 +1,11 @@
 ---
 source: src/lib.rs
+assertion_line: 335
 expression: "parse(\"hostname[6].iml.com\")"
+
 ---
 Ok(
-    {
+    [
         "hostname6.iml.com",
-    },
+    ],
 )

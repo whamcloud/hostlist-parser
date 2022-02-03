@@ -1,9 +1,11 @@
 ---
 source: src/lib.rs
+assertion_line: 361
 expression: "parse(\"hostname[001-999]\")"
+
 ---
 Ok(
-    {
+    [
         "hostname001",
         "hostname002",
         "hostname003",
@@ -1003,5 +1005,5 @@ Ok(
         "hostname997",
         "hostname998",
         "hostname999",
-    },
+    ],
 )

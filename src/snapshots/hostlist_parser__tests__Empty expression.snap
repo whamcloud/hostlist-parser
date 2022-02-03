@@ -1,6 +1,8 @@
 ---
 source: src/lib.rs
+assertion_line: 446
 expression: "parse(\"\")"
+
 ---
 Err(
     Errors {
@@ -9,6 +11,11 @@ Err(
             Unexpected(
                 Static(
                     "no host found",
+                ),
+            ),
+            Unexpected(
+                Static(
+                    "end of input",
                 ),
             ),
         ],

@@ -4,13 +4,13 @@ description = "Parses hostlist expressions into a Vec of Strings"
 repository = "https://github.com/whamcloud/hostlist-parser"
 keywords = ["hostlist", "pdsh", "hpc", "cluster"]
 license = "MIT"
-version = "0.1.3"
-authors = ["IML Team <iml@whamcloud.com>"]
-edition = "2018"
+version = "0.1.4"
+authors = ["EMF Team <emf@whamcloud.com>"]
+edition = "2021"
 
 [dependencies]
-combine = "4.1.0"
-itertools = "0.9"
+combine = "4.6"
+itertools = "0.10"
 
 [dev-dependencies]
-insta = "0.16"
+insta = "1.12"
