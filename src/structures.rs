@@ -63,7 +63,7 @@ impl Part {
 }
 
 pub(crate) fn flatten_ranges(xs: &[RangeOutput]) -> Vec<String> {
-    xs.iter().map(|x| x.iter()).flatten().collect()
+    xs.iter().flat_map(|x| x.iter()).collect()
 }
 
 #[cfg(test)]
