@@ -1,6 +1,6 @@
 # hostlist-parser
 
-![Crates.io](https://img.shields.io/crates/v/hostlist-parser) ![docs.rs](https://docs.rs/hostlist-parser/badge.svg?version=0.1.4)
+![Crates.io](https://img.shields.io/crates/v/hostlist-parser) ![docs.rs](https://docs.rs/hostlist-parser/badge.svg?version=0.1.5)
 
 Parses hostlist expressions into a deduped `Vec` of Strings
 
