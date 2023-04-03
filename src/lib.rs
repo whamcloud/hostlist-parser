@@ -77,14 +77,6 @@ where
     many1(digit())
 }
 
-fn parsed_digits<I>() -> impl Parser<I, Output = u64>
-where
-    I: Stream<Token = char>,
-    I::Error: ParseError<I::Token, I::Range, I::Position>,
-{
-    digits().and_then(|x| x.parse::<u64>().map_err(StreamErrorFor::<I>::other))
-}
-
 fn leading_zeros<I>() -> impl Parser<I, Output = (usize, u64)>
 where
     I: Stream<Token = char>,
@@ -156,7 +148,7 @@ where
 
     sep_by1(
         optional_spaces()
-            .with(parsed_digits())
+            .with(leading_zeros())
             .skip(optional_spaces()),
         attempt(comma().skip(not_name)),
     )
@@ -285,6 +277,7 @@ mod tests {
     fn test_disjoint_digits() {
         assert_debug_snapshot!(disjoint_digits().easy_parse("1,2,3,4,5]"));
         assert_debug_snapshot!(disjoint_digits().easy_parse("1,2,3-5"));
+        assert_debug_snapshot!(disjoint_digits().easy_parse("1,2,006,0007,3-5"));
     }
 
     #[test]
@@ -483,5 +476,11 @@ mod tests {
             "Having a closing brace before an opening brace",
             parse("hostname]00[asdf")
         );
+    }
+
+    #[test]
+
+    fn test_parse_osts() {
+        assert_debug_snapshot!("Leading 0s", parse("OST01[00,01]"));
     }
 }

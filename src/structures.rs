@@ -6,40 +6,42 @@
 pub(crate) enum RangeOutput {
     Range(usize, u64, u64),
     RangeReversed(usize, u64, u64),
-    Disjoint(Vec<u64>),
+    Disjoint(Vec<(usize, u64)>),
 }
 
 impl RangeOutput {
     pub(crate) fn iter(&self) -> RangeOutputIter {
         match self {
-            RangeOutput::Range(prefix, start, end) => RangeOutputIter {
-                prefix: *prefix,
-                iterator: Box::new(*start..=*end),
-            },
-            RangeOutput::RangeReversed(prefix, end, start) => RangeOutputIter {
-                prefix: *prefix,
-                iterator: Box::new((*end..=*start).rev()),
-            },
-            RangeOutput::Disjoint(xs) => RangeOutputIter {
-                prefix: 0,
-                iterator: Box::new(xs.clone().into_iter()),
-            },
+            RangeOutput::Range(prefix, start, end) => {
+                RangeOutputIter::External(*prefix, Box::new(*start..=*end))
+            }
+            RangeOutput::RangeReversed(prefix, end, start) => {
+                RangeOutputIter::External(*prefix, Box::new((*end..=*start).rev()))
+            }
+            RangeOutput::Disjoint(xs) => {
+                RangeOutputIter::Internal(Box::new(xs.clone().into_iter()))
+            }
         }
     }
 }
 
-pub(crate) struct RangeOutputIter {
-    prefix: usize,
-    iterator: Box<dyn Iterator<Item = u64>>,
+pub(crate) enum RangeOutputIter {
+    External(usize, Box<dyn Iterator<Item = u64>>),
+    Internal(Box<dyn Iterator<Item = (usize, u64)>>),
 }
 
 impl Iterator for RangeOutputIter {
     type Item = String;
 
     fn next(&mut self) -> Option<Self::Item> {
-        self.iterator
-            .next()
-            .map(|x| format_num_prefix(x, self.prefix))
+        match self {
+            RangeOutputIter::External(prefix, xs) => {
+                xs.next().map(|x| format_num_prefix(x, *prefix))
+            }
+            RangeOutputIter::Internal(xs) => {
+                xs.next().map(|(prefix, x)| format_num_prefix(x, prefix))
+            }
+        }
     }
 }
 
@@ -78,7 +80,7 @@ mod tests {
 
     #[test]
     fn test_range_output_disjoint_iter() {
-        assert_debug_snapshot!(RangeOutput::Disjoint(vec![1, 10])
+        assert_debug_snapshot!(RangeOutput::Disjoint(vec![(0, 1), (1, 10)])
             .iter()
             .collect::<Vec<_>>());
     }
