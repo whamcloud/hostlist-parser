@@ -1,8 +1,8 @@
 ---
 source: src/structures.rs
-expression: "RangeOutput::Disjoint(vec![1, 10]).iter().collect::<Vec<_>>()"
+expression: "RangeOutput::Disjoint(vec![(0, 1), (1, 10)]).iter().collect::<Vec<_>>()"
 ---
 [
     "1",
-    "10",
+    "010",
 ]

@@ -1,13 +1,12 @@
 ---
 source: src/lib.rs
-assertion_line: 281
 expression: "range_digits().easy_parse(\"100-0\")"
-
 ---
 Ok(
     (
         RangeReversed(
             0,
+            true,
             0,
             100,
         ),

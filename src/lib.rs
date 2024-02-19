@@ -106,18 +106,20 @@ where
         optional_spaces().with(leading_zeros()),
     ))
     .and_then(|((start_zeros, start), _, (end_zeros, end))| {
-        let mut xs = vec![start, end];
+        let mut xs = [start, end];
         xs.sort_unstable();
+
+        let same_prefix_len = start_zeros == end_zeros;
 
         let (range, start_zeros, end_zeros) = if start > end {
             (
-                RangeOutput::RangeReversed(end_zeros, end, start),
+                RangeOutput::RangeReversed(end_zeros, same_prefix_len, end, start),
                 end_zeros,
                 start_zeros,
             )
         } else {
             (
-                RangeOutput::Range(start_zeros, start, end),
+                RangeOutput::Range(start_zeros, same_prefix_len, start, end),
                 start_zeros,
                 end_zeros,
             )
@@ -206,7 +208,7 @@ pub fn parse(input: &str) -> Result<Vec<String>, combine::stream::easy::Errors<c
         .easy_parse(input)
         .map_err(|err| err.map_position(|p| p.translate_position(input)))?;
 
-    let mut xs = Vec::new();
+    let mut xs = vec![];
 
     for parts in hosts {
         let x_prod: Vec<_> = parts
@@ -218,8 +220,6 @@ pub fn parse(input: &str) -> Result<Vec<String>, combine::stream::easy::Errors<c
 
         // No ranges means no interpolation
         if x_prod.is_empty() {
-            if parts.is_empty() {}
-
             let mut s = String::new();
 
             for p in parts.clone() {
@@ -263,6 +263,8 @@ mod tests {
         assert_debug_snapshot!(leading_zeros().easy_parse("01"));
         assert_debug_snapshot!(leading_zeros().easy_parse("00"));
         assert_debug_snapshot!(leading_zeros().easy_parse("0"));
+        assert_debug_snapshot!(leading_zeros().easy_parse("042"));
+        assert_debug_snapshot!(leading_zeros().easy_parse("042"));
     }
 
     #[test]
@@ -476,6 +478,13 @@ mod tests {
             "Having a closing brace before an opening brace",
             parse("hostname]00[asdf")
         );
+    }
+
+    #[test]
+    fn test_parse_large_expression() {
+        let xs = parse("atla-pio-03-o[048-051],atla-pio-05-o[052-055],atla-pio-07-o[056-059],atla-pio-09-o[060-063],atla-pio-11-o[064-067],atla-pio-13-o[068-071],atla-pip-03-o[072-075],atla-pip-05-o[076-079],atla-pip-07-o[080-083],atla-pip-11-o[088-091],atla-pip-13-o[092-095],atla-pip-09-o[085,087],atla-piq-03-o[096-099],atla-piq-05-o[100-103],atla-piq-07-o[104-107],atla-piq-09-o[108-111],atla-piq-11-o[112-115],atla-piq-13-o[116-119],atla-pir-03-o[120-123],atla-pir-05-o[124-127],atla-pir-07-o[128-131],atla-pir-09-o[132-135],atla-pir-11-o[136-139],atla-pir-13-o[140-143],atla-pis-03-m[000-003],atla-pis-05-o[000-003],atla-pis-07-o[004-007],atla-pis-09-o[008-011],atla-pis-11-o[012-015],atla-pis-13-o[016-019],atla-pis-15-o[020-023],atla-pit-03-m[004-007],atla-pit-05-o[024-027],atla-pit-07-o[028-031],atla-pit-09-o[032-035],atla-pit-11-o[036-039],atla-pit-15-o[044-047],atla-pit-13-o[040,042]").unwrap();
+
+        assert_debug_snapshot!("Large expression", xs);
     }
 
     #[test]

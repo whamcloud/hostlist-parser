@@ -1,0 +1,13 @@
+---
+source: src/lib.rs
+expression: "leading_zeros().easy_parse(\"042\")"
+---
+Ok(
+    (
+        (
+            1,
+            42,
+        ),
+        "",
+    ),
+)
