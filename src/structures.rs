@@ -7,6 +7,9 @@ pub(crate) enum RangeOutput {
     Range(usize, bool, u64, u64),
     RangeReversed(usize, bool, u64, u64),
     Disjoint(Vec<(usize, u64)>),
+    HexRange(usize, bool, u64, u64),
+    HexRangeReversed(usize, bool, u64, u64),
+    HexDisjoint(Vec<(usize, u64)>),
 }
 
 impl RangeOutput {
@@ -25,6 +28,19 @@ impl RangeOutput {
             RangeOutput::Disjoint(xs) => {
                 RangeOutputIter::Internal(Box::new(xs.clone().into_iter()))
             }
+            RangeOutput::HexRange(prefix, same_prefix_len, start, end) => {
+                RangeOutputIter::ExternalHex(*prefix, *same_prefix_len, Box::new(*start..=*end))
+            }
+            RangeOutput::HexRangeReversed(prefix, same_prefix_len, end, start) => {
+                RangeOutputIter::ExternalHex(
+                    *prefix,
+                    *same_prefix_len,
+                    Box::new((*end..=*start).rev()),
+                )
+            }
+            RangeOutput::HexDisjoint(xs) => {
+                RangeOutputIter::InternalHex(Box::new(xs.clone().into_iter()))
+            }
         }
     }
 }
@@ -32,6 +48,8 @@ impl RangeOutput {
 pub(crate) enum RangeOutputIter {
     External(usize, bool, Box<dyn Iterator<Item = u64>>),
     Internal(Box<dyn Iterator<Item = (usize, u64)>>),
+    ExternalHex(usize, bool, Box<dyn Iterator<Item = u64>>),
+    InternalHex(Box<dyn Iterator<Item = (usize, u64)>>),
 }
 
 impl Iterator for RangeOutputIter {
@@ -45,6 +63,12 @@ impl Iterator for RangeOutputIter {
             RangeOutputIter::Internal(xs) => xs
                 .next()
                 .map(|(prefix, x)| format_num_prefix(x, prefix, true)),
+            RangeOutputIter::ExternalHex(prefix, same_prefix_len, xs) => xs
+                .next()
+                .map(|x| format_hex_prefix(x, *prefix, *same_prefix_len)),
+            RangeOutputIter::InternalHex(xs) => xs
+                .next()
+                .map(|(prefix, x)| format_hex_prefix(x, prefix, true)),
         }
     }
 }
@@ -57,6 +81,24 @@ pub(crate) fn format_num_prefix(num: u64, prefix: usize, same_prefix_len: bool) 
     };
 
     format!("{num:0>width$}")
+}
+
+pub(crate) fn format_hex_prefix(num: u64, prefix: usize, same_prefix_len: bool) -> String {
+    let s = format!("{:x}", num);
+    let width = if same_prefix_len {
+        prefix + s.len()
+    } else {
+        prefix + 1
+    };
+
+    if width <= s.len() {
+        s
+    } else {
+        let mut out = String::with_capacity(width);
+        out.extend(std::iter::repeat_n('0', width - s.len()));
+        out.push_str(&s);
+        out
+    }
 }
 
 #[derive(Debug, Clone)]

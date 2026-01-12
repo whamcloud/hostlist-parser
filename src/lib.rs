@@ -5,6 +5,7 @@
 mod structures;
 
 use crate::structures::{flatten_ranges, Part, RangeOutput};
+use combine::parser::token::satisfy;
 use combine::{
     attempt, between, choice, eof,
     error::{ParseError, StreamError},
@@ -66,7 +67,7 @@ where
     I: Stream<Token = char>,
     I::Error: ParseError<I::Token, I::Range, I::Position>,
 {
-    many1(alpha_num().or(dash()).or(token('.')))
+    many1(alpha_num().or(dash()).or(token('.')).or(token(':')))
 }
 
 fn digits<I>() -> impl Parser<I, Output = String>
@@ -75,6 +76,14 @@ where
     I::Error: ParseError<I::Token, I::Range, I::Position>,
 {
     many1(digit())
+}
+
+fn hex_digits<I>() -> impl Parser<I, Output = String>
+where
+    I: Stream<Token = char>,
+    I::Error: ParseError<I::Token, I::Range, I::Position>,
+{
+    many1(satisfy(|c: char| c.is_ascii_hexdigit()))
 }
 
 fn leading_zeros<I>() -> impl Parser<I, Output = (usize, u64)>
@@ -91,6 +100,28 @@ where
 
         x.parse::<u64>()
             .map(|num| (digits, num))
+            .map_err(StreamErrorFor::<I>::other)
+    })
+}
+
+fn leading_hex<I>() -> impl Parser<I, Output = (usize, u64, bool)>
+where
+    I: Stream<Token = char>,
+    I::Error: ParseError<I::Token, I::Range, I::Position>,
+{
+    hex_digits().and_then(|x| {
+        let mut digits = x.chars().take_while(|x| x == &'0').count();
+
+        if x.len() == digits {
+            digits -= 1;
+        }
+
+        let has_alpha = x
+            .chars()
+            .any(|c| c.is_ascii_hexdigit() && !c.is_ascii_digit());
+
+        u64::from_str_radix(&x, 16)
+            .map(|num| (digits, num, has_alpha))
             .map_err(StreamErrorFor::<I>::other)
     })
 }
@@ -135,6 +166,49 @@ where
     })
 }
 
+fn range_hex<I>() -> impl Parser<I, Output = RangeOutput>
+where
+    I: Stream<Token = char>,
+    I::Error: ParseError<I::Token, I::Range, I::Position>,
+{
+    attempt((
+        leading_hex(),
+        optional_spaces().with(dash()),
+        optional_spaces().with(leading_hex()),
+    ))
+    .and_then(|((start_zeros, start, a1), _, (end_zeros, end, a2))| {
+        if !(a1 || a2) {
+            return Err(StreamErrorFor::<I>::unexpected_static_message("not hex"));
+        }
+        let mut xs = [start, end];
+        xs.sort_unstable();
+
+        let same_prefix_len = start_zeros == end_zeros;
+
+        let (range, start_zeros, end_zeros) = if start > end {
+            (
+                RangeOutput::HexRangeReversed(end_zeros, same_prefix_len, end, start),
+                end_zeros,
+                start_zeros,
+            )
+        } else {
+            (
+                RangeOutput::HexRange(start_zeros, same_prefix_len, start, end),
+                start_zeros,
+                end_zeros,
+            )
+        };
+
+        if end_zeros > start_zeros {
+            Err(StreamErrorFor::<I>::unexpected_static_message(
+                "larger end padding",
+            ))
+        } else {
+            Ok(range)
+        }
+    })
+}
+
 fn disjoint_digits<I>() -> impl Parser<I, Output = RangeOutput>
 where
     I: Stream<Token = char>,
@@ -157,6 +231,36 @@ where
     .map(RangeOutput::Disjoint)
 }
 
+fn disjoint_hex<I>() -> impl Parser<I, Output = RangeOutput>
+where
+    I: Stream<Token = char>,
+    I::Error: ParseError<I::Token, I::Range, I::Position>,
+{
+    let not_name = not_followed_by(
+        optional_spaces()
+            .with(hex_digits())
+            .skip(optional_spaces())
+            .skip(dash())
+            .map(|_| ""),
+    );
+
+    sep_by1(
+        optional_spaces()
+            .with(leading_hex())
+            .skip(optional_spaces()),
+        attempt(comma().skip(not_name)),
+    )
+    .and_then(|xs: Vec<(usize, u64, bool)>| {
+        if xs.iter().any(|(_, _, a)| *a) {
+            Ok(RangeOutput::HexDisjoint(
+                xs.into_iter().map(|(z, n, _)| (z, n)).collect(),
+            ))
+        } else {
+            Err(StreamErrorFor::<I>::unexpected_static_message("not hex"))
+        }
+    })
+}
+
 fn range<I>() -> impl Parser<I, Output = Vec<RangeOutput>>
 where
     I: Stream<Token = char>,
@@ -165,7 +269,13 @@ where
     between(
         open_bracket(),
         close_bracket(),
-        sep_by1(range_digits().or(disjoint_digits()), comma()),
+        sep_by1(
+            attempt(range_hex())
+                .or(range_digits())
+                .or(attempt(disjoint_hex()))
+                .or(attempt(disjoint_digits())),
+            comma(),
+        ),
     )
 }
 
@@ -491,5 +601,17 @@ mod tests {
 
     fn test_parse_osts() {
         assert_debug_snapshot!("Leading 0s", parse("OST01[00,01]"));
+    }
+
+    #[test]
+    fn test_parse_ip_addresses() {
+        assert_debug_snapshot!("IPv4 single", parse("192.168.0.1"));
+        assert_debug_snapshot!("IPv6 compressed", parse("2001:db8::1"));
+        assert_debug_snapshot!(
+            "IPv6 full",
+            parse("fe80:1234:5678:9abc:def0:1234:5678:9abc")
+        );
+        assert_debug_snapshot!("Multiple IPv6 literals", parse("2001:db8::1, 2001:db8::2"));
+        assert_debug_snapshot!("IPv6 expansion", parse("2001:db8::[0-f]"));
     }
 }

@@ -21,6 +21,11 @@ Err(
                     "digit",
                 ),
             ),
+            Unexpected(
+                Token(
+                    '1',
+                ),
+            ),
         ],
     },
 )
