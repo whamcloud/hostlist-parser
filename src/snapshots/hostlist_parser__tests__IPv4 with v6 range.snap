@@ -1,0 +1,24 @@
+---
+source: src/lib.rs
+expression: "parse(\"192.168.0.[0-f]\").unwrap_err()"
+---
+Errors {
+    position: 12,
+    errors: [
+        Unexpected(
+            Token(
+                '-',
+            ),
+        ),
+        Expected(
+            Token(
+                ',',
+            ),
+        ),
+        Expected(
+            Token(
+                ']',
+            ),
+        ),
+    ],
+}

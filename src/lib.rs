@@ -4,21 +4,21 @@
 
 mod structures;
 
-use crate::structures::{flatten_ranges, Part, RangeOutput};
-use combine::parser::token::satisfy;
+use crate::structures::{Part, RangeOutput, flatten_ranges};
 use combine::{
-    attempt, between, choice, eof,
+    Parser, attempt, between, choice, eof,
     error::{ParseError, StreamError},
     many1, not_followed_by, optional,
     parser::{
+        EasyParser,
         char::{alpha_num, digit, spaces},
         combinator::ignore,
         repeat::repeat_until,
-        EasyParser,
+        token::satisfy,
     },
     sep_by1,
     stream::{Stream, StreamErrorFor},
-    token, Parser,
+    token,
 };
 use itertools::Itertools as _;
 
@@ -67,7 +67,15 @@ where
     I: Stream<Token = char>,
     I::Error: ParseError<I::Token, I::Range, I::Position>,
 {
-    many1(alpha_num().or(dash()).or(token('.')).or(token(':')))
+    many1(alpha_num().or(dash()).or(token('.')))
+}
+
+fn host_elements6<I>() -> impl Parser<I, Output = String>
+where
+    I: Stream<Token = char>,
+    I::Error: ParseError<I::Token, I::Range, I::Position>,
+{
+    many1(alpha_num().or(dash()).or(token(':')))
 }
 
 fn digits<I>() -> impl Parser<I, Output = String>
@@ -269,17 +277,23 @@ where
     between(
         open_bracket(),
         close_bracket(),
-        sep_by1(
-            attempt(range_hex())
-                .or(range_digits())
-                .or(attempt(disjoint_hex()))
-                .or(attempt(disjoint_digits())),
-            comma(),
-        ),
+        sep_by1(range_digits().or(disjoint_digits()), comma()),
     )
 }
 
-fn hostlist<I>() -> impl Parser<I, Output = Vec<Part>>
+fn range6<I>() -> impl Parser<I, Output = Vec<RangeOutput>>
+where
+    I: Stream<Token = char>,
+    I::Error: ParseError<I::Token, I::Range, I::Position>,
+{
+    between(
+        open_bracket(),
+        close_bracket(),
+        sep_by1(attempt(range_hex()).or(attempt(disjoint_hex())), comma()),
+    )
+}
+
+fn hostlist4<I>() -> impl Parser<I, Output = Vec<Part>>
 where
     I: Stream<Token = char>,
     I::Error: ParseError<I::Token, I::Range, I::Position>,
@@ -305,12 +319,41 @@ where
     })
 }
 
+fn hostlist6<I>() -> impl Parser<I, Output = Vec<Part>>
+where
+    I: Stream<Token = char>,
+    I::Error: ParseError<I::Token, I::Range, I::Position>,
+{
+    repeat_until(
+        choice([
+            range6().map(Part::Range).left(),
+            optional_spaces()
+                .with(host_elements6())
+                .map(Part::String)
+                .right(),
+        ]),
+        attempt(optional_spaces().skip(ignore(comma()).or(eof()))),
+    )
+    .and_then(|xs: Vec<_>| {
+        if xs.is_empty() {
+            Err(StreamErrorFor::<I>::unexpected_static_message(
+                "no host found",
+            ))
+        } else {
+            Ok(xs)
+        }
+    })
+}
+
 fn hostlists<I>() -> impl Parser<I, Output = Vec<Vec<Part>>>
 where
     I: Stream<Token = char>,
     I::Error: ParseError<I::Token, I::Range, I::Position>,
 {
-    sep_by1(hostlist(), optional_spaces().with(comma()))
+    sep_by1(
+        choice([hostlist4().left(), hostlist6().right()]),
+        optional_spaces().with(comma()),
+    )
 }
 
 pub fn parse(input: &str) -> Result<Vec<String>, combine::stream::easy::Errors<char, &str, usize>> {
@@ -402,9 +445,9 @@ mod tests {
 
     #[test]
     fn test_hostlist() {
-        assert_debug_snapshot!(hostlist().easy_parse("oss1.local"));
-        assert_debug_snapshot!(hostlist().easy_parse("oss[1,2].local"));
-        assert_debug_snapshot!(hostlist().easy_parse(
+        assert_debug_snapshot!(hostlist4().easy_parse("oss1.local"));
+        assert_debug_snapshot!(hostlist4().easy_parse("oss[1,2].local"));
+        assert_debug_snapshot!(hostlist4().easy_parse(
             "hostname[2,6,7].iml.com,hostname[10,11-12,2-3,5].iml.com,hostname[15-17].iml.com"
         ));
     }
@@ -489,7 +532,12 @@ mod tests {
             )
         );
 
-        assert_debug_snapshot!("Multiple ranges per hostname in which the difference is 1", parse("hostname[1,2-3].iml[2,3].com,hostname[3,4,5].iml[2,3].com,hostname[5-6,7].iml[2,3].com"));
+        assert_debug_snapshot!(
+            "Multiple ranges per hostname in which the difference is 1",
+            parse(
+                "hostname[1,2-3].iml[2,3].com,hostname[3,4,5].iml[2,3].com,hostname[5-6,7].iml[2,3].com"
+            )
+        );
 
         assert_debug_snapshot!(
             "Multiple ranges per hostname in which the difference is 1 two formats",
@@ -613,5 +661,7 @@ mod tests {
         );
         assert_debug_snapshot!("Multiple IPv6 literals", parse("2001:db8::1, 2001:db8::2"));
         assert_debug_snapshot!("IPv6 expansion", parse("2001:db8::[0-f]"));
+
+        assert_debug_snapshot!("IPv4 with v6 range", parse("192.168.0.[0-f]").unwrap_err());
     }
 }
