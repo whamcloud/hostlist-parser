@@ -2,6 +2,10 @@
 // Use of this source code is governed by a MIT-style
 // license that can be found in the LICENSE file.
 
+pub trait Cardinality {
+    fn cardinality(&self) -> u64;
+}
+
 #[derive(Debug, Clone)]
 pub(crate) enum RangeOutput {
     Range(usize, bool, u64, u64),
@@ -10,6 +14,19 @@ pub(crate) enum RangeOutput {
     HexRange(usize, bool, u64, u64),
     HexRangeReversed(usize, bool, u64, u64),
     HexDisjoint(Vec<(usize, u64)>),
+}
+
+impl Cardinality for RangeOutput {
+    fn cardinality(&self) -> u64 {
+        match self {
+            RangeOutput::Range(_, _, start, end) | RangeOutput::HexRange(_, _, start, end) => {
+                end - start
+            }
+            RangeOutput::RangeReversed(_, _, start, end)
+            | RangeOutput::HexRangeReversed(_, _, start, end) => start - end,
+            RangeOutput::Disjoint(items) | RangeOutput::HexDisjoint(items) => items.len() as u64,
+        }
+    }
 }
 
 impl RangeOutput {
@@ -107,6 +124,23 @@ pub(crate) enum Part {
     Range(Vec<RangeOutput>),
 }
 
+impl Cardinality for Part {
+    fn cardinality(&self) -> u64 {
+        match self {
+            Part::String(_) => 1,
+            Part::Range(range_outputs) => {
+                range_outputs.iter().map(Cardinality::cardinality).product()
+            }
+        }
+    }
+}
+
+impl Cardinality for Vec<Part> {
+    fn cardinality(&self) -> u64 {
+        self.iter().map(Cardinality::cardinality).product()
+    }
+}
+
 impl Part {
     pub(crate) fn get_ranges(&self) -> Option<&Vec<RangeOutput>> {
         match self {
@@ -127,15 +161,19 @@ mod tests {
 
     #[test]
     fn test_range_output_range_iter() {
-        assert_debug_snapshot!(RangeOutput::Range(3, false, 1, 10)
-            .iter()
-            .collect::<Vec<_>>());
+        assert_debug_snapshot!(
+            RangeOutput::Range(3, false, 1, 10)
+                .iter()
+                .collect::<Vec<_>>()
+        );
     }
 
     #[test]
     fn test_range_output_disjoint_iter() {
-        assert_debug_snapshot!(RangeOutput::Disjoint(vec![(0, 1), (1, 10)])
-            .iter()
-            .collect::<Vec<_>>());
+        assert_debug_snapshot!(
+            RangeOutput::Disjoint(vec![(0, 1), (1, 10)])
+                .iter()
+                .collect::<Vec<_>>()
+        );
     }
 }

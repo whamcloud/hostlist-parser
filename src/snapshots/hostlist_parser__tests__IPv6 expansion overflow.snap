@@ -1,0 +1,14 @@
+---
+source: src/lib.rs
+expression: "parse(\"2001:db8::[0000-ffff]:[0000-ffff]\").unwrap_err()"
+---
+Errors {
+    position: 0,
+    errors: [
+        Unexpected(
+            Static(
+                "cardinality overflow",
+            ),
+        ),
+    ],
+}

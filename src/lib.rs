@@ -4,7 +4,9 @@
 
 mod structures;
 
-use crate::structures::{Part, RangeOutput, flatten_ranges};
+const CARDINALITY_THRESHOLD: u64 = 100_000;
+
+use crate::structures::{Cardinality, Part, RangeOutput, flatten_ranges};
 use combine::{
     Parser, attempt, between, choice, eof,
     error::{ParseError, StreamError},
@@ -323,6 +325,10 @@ where
         if xs.is_empty() {
             Err(StreamErrorFor::<I>::unexpected_static_message(
                 "no host found",
+            ))
+        } else if xs.cardinality() > CARDINALITY_THRESHOLD {
+            Err(StreamErrorFor::<I>::unexpected_static_message(
+                "cardinality overflow",
             ))
         } else {
             Ok(xs)
@@ -647,7 +653,20 @@ mod tests {
         assert_debug_snapshot!("Multiple IPv6 literals", parse("2001:db8::1, 2001:db8::2"));
         assert_debug_snapshot!("IPv6 expansion", parse("2001:db8::[0-f]"));
         assert_debug_snapshot!("IPv6 expansion with base 16", parse("2001:db8::[00-10]"));
+        assert_debug_snapshot!(
+            "IPv6 expansion with multiple ranges",
+            parse("2001:db[0-8]::[00-10]:1")
+        );
 
         assert_debug_snapshot!("IPv4 with v6 range", parse("192.168.0.[0-f]").unwrap_err());
+    }
+
+    #[test]
+    fn test_parse_capacity() {
+        assert_debug_snapshot!("IPv6 expansion valid", parse("2001:db8::[0000-ffff]"));
+        assert_debug_snapshot!(
+            "IPv6 expansion overflow",
+            parse("2001:db8::[0-f]:[0000-ffff]").unwrap_err()
+        );
     }
 }
