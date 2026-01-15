@@ -112,7 +112,7 @@ where
     })
 }
 
-fn leading_hex<I>() -> impl Parser<I, Output = (usize, u64, bool)>
+fn leading_hex<I>() -> impl Parser<I, Output = (usize, u64)>
 where
     I: Stream<Token = char>,
     I::Error: ParseError<I::Token, I::Range, I::Position>,
@@ -124,12 +124,8 @@ where
             digits -= 1;
         }
 
-        let has_alpha = x
-            .chars()
-            .any(|c| c.is_ascii_hexdigit() && !c.is_ascii_digit());
-
         u64::from_str_radix(&x, 16)
-            .map(|num| (digits, num, has_alpha))
+            .map(|num| (digits, num))
             .map_err(StreamErrorFor::<I>::other)
     })
 }
@@ -184,10 +180,7 @@ where
         optional_spaces().with(dash()),
         optional_spaces().with(leading_hex()),
     ))
-    .and_then(|((start_zeros, start, a1), _, (end_zeros, end, a2))| {
-        if !(a1 || a2) {
-            return Err(StreamErrorFor::<I>::unexpected_static_message("not hex"));
-        }
+    .and_then(|((start_zeros, start), _, (end_zeros, end))| {
         let mut xs = [start, end];
         xs.sort_unstable();
 
@@ -258,15 +251,7 @@ where
             .skip(optional_spaces()),
         attempt(comma().skip(not_name)),
     )
-    .and_then(|xs: Vec<(usize, u64, bool)>| {
-        if xs.iter().any(|(_, _, a)| *a) {
-            Ok(RangeOutput::HexDisjoint(
-                xs.into_iter().map(|(z, n, _)| (z, n)).collect(),
-            ))
-        } else {
-            Err(StreamErrorFor::<I>::unexpected_static_message("not hex"))
-        }
-    })
+    .map(RangeOutput::HexDisjoint)
 }
 
 fn range<I>() -> impl Parser<I, Output = Vec<RangeOutput>>
@@ -289,7 +274,7 @@ where
     between(
         open_bracket(),
         close_bracket(),
-        sep_by1(attempt(range_hex()).or(attempt(disjoint_hex())), comma()),
+        sep_by1(range_hex().or(disjoint_hex()), comma()),
     )
 }
 
@@ -661,6 +646,7 @@ mod tests {
         );
         assert_debug_snapshot!("Multiple IPv6 literals", parse("2001:db8::1, 2001:db8::2"));
         assert_debug_snapshot!("IPv6 expansion", parse("2001:db8::[0-f]"));
+        assert_debug_snapshot!("IPv6 expansion with base 16", parse("2001:db8::[00-10]"));
 
         assert_debug_snapshot!("IPv4 with v6 range", parse("192.168.0.[0-f]").unwrap_err());
     }
