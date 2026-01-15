@@ -4,20 +4,23 @@
 
 mod structures;
 
-use crate::structures::{flatten_ranges, Part, RangeOutput};
+const CARDINALITY_THRESHOLD: u64 = 100_000;
+
+use crate::structures::{Cardinality, Part, RangeOutput, flatten_ranges};
 use combine::{
-    attempt, between, choice, eof,
+    Parser, attempt, between, choice, eof,
     error::{ParseError, StreamError},
     many1, not_followed_by, optional,
     parser::{
+        EasyParser,
         char::{alpha_num, digit, spaces},
         combinator::ignore,
         repeat::repeat_until,
-        EasyParser,
+        token::satisfy,
     },
     sep_by1,
     stream::{Stream, StreamErrorFor},
-    token, Parser,
+    token,
 };
 use itertools::Itertools as _;
 
@@ -69,12 +72,28 @@ where
     many1(alpha_num().or(dash()).or(token('.')))
 }
 
+fn host_elements6<I>() -> impl Parser<I, Output = String>
+where
+    I: Stream<Token = char>,
+    I::Error: ParseError<I::Token, I::Range, I::Position>,
+{
+    many1(alpha_num().or(dash()).or(token(':')))
+}
+
 fn digits<I>() -> impl Parser<I, Output = String>
 where
     I: Stream<Token = char>,
     I::Error: ParseError<I::Token, I::Range, I::Position>,
 {
     many1(digit())
+}
+
+fn hex_digits<I>() -> impl Parser<I, Output = String>
+where
+    I: Stream<Token = char>,
+    I::Error: ParseError<I::Token, I::Range, I::Position>,
+{
+    many1(satisfy(|c: char| c.is_ascii_hexdigit()))
 }
 
 fn leading_zeros<I>() -> impl Parser<I, Output = (usize, u64)>
@@ -90,6 +109,24 @@ where
         }
 
         x.parse::<u64>()
+            .map(|num| (digits, num))
+            .map_err(StreamErrorFor::<I>::other)
+    })
+}
+
+fn leading_hex<I>() -> impl Parser<I, Output = (usize, u64)>
+where
+    I: Stream<Token = char>,
+    I::Error: ParseError<I::Token, I::Range, I::Position>,
+{
+    hex_digits().and_then(|x| {
+        let mut digits = x.chars().take_while(|x| x == &'0').count();
+
+        if x.len() == digits {
+            digits -= 1;
+        }
+
+        u64::from_str_radix(&x, 16)
             .map(|num| (digits, num))
             .map_err(StreamErrorFor::<I>::other)
     })
@@ -135,6 +172,46 @@ where
     })
 }
 
+fn range_hex<I>() -> impl Parser<I, Output = RangeOutput>
+where
+    I: Stream<Token = char>,
+    I::Error: ParseError<I::Token, I::Range, I::Position>,
+{
+    attempt((
+        leading_hex(),
+        optional_spaces().with(dash()),
+        optional_spaces().with(leading_hex()),
+    ))
+    .and_then(|((start_zeros, start), _, (end_zeros, end))| {
+        let mut xs = [start, end];
+        xs.sort_unstable();
+
+        let same_prefix_len = start_zeros == end_zeros;
+
+        let (range, start_zeros, end_zeros) = if start > end {
+            (
+                RangeOutput::HexRangeReversed(end_zeros, same_prefix_len, end, start),
+                end_zeros,
+                start_zeros,
+            )
+        } else {
+            (
+                RangeOutput::HexRange(start_zeros, same_prefix_len, start, end),
+                start_zeros,
+                end_zeros,
+            )
+        };
+
+        if end_zeros > start_zeros {
+            Err(StreamErrorFor::<I>::unexpected_static_message(
+                "larger end padding",
+            ))
+        } else {
+            Ok(range)
+        }
+    })
+}
+
 fn disjoint_digits<I>() -> impl Parser<I, Output = RangeOutput>
 where
     I: Stream<Token = char>,
@@ -157,6 +234,28 @@ where
     .map(RangeOutput::Disjoint)
 }
 
+fn disjoint_hex<I>() -> impl Parser<I, Output = RangeOutput>
+where
+    I: Stream<Token = char>,
+    I::Error: ParseError<I::Token, I::Range, I::Position>,
+{
+    let not_name = not_followed_by(
+        optional_spaces()
+            .with(hex_digits())
+            .skip(optional_spaces())
+            .skip(dash())
+            .map(|_| ""),
+    );
+
+    sep_by1(
+        optional_spaces()
+            .with(leading_hex())
+            .skip(optional_spaces()),
+        attempt(comma().skip(not_name)),
+    )
+    .map(RangeOutput::HexDisjoint)
+}
+
 fn range<I>() -> impl Parser<I, Output = Vec<RangeOutput>>
 where
     I: Stream<Token = char>,
@@ -169,7 +268,19 @@ where
     )
 }
 
-fn hostlist<I>() -> impl Parser<I, Output = Vec<Part>>
+fn range6<I>() -> impl Parser<I, Output = Vec<RangeOutput>>
+where
+    I: Stream<Token = char>,
+    I::Error: ParseError<I::Token, I::Range, I::Position>,
+{
+    between(
+        open_bracket(),
+        close_bracket(),
+        sep_by1(range_hex().or(disjoint_hex()), comma()),
+    )
+}
+
+fn hostlist4<I>() -> impl Parser<I, Output = Vec<Part>>
 where
     I: Stream<Token = char>,
     I::Error: ParseError<I::Token, I::Range, I::Position>,
@@ -195,12 +306,45 @@ where
     })
 }
 
+fn hostlist6<I>() -> impl Parser<I, Output = Vec<Part>>
+where
+    I: Stream<Token = char>,
+    I::Error: ParseError<I::Token, I::Range, I::Position>,
+{
+    repeat_until(
+        choice([
+            range6().map(Part::Range).left(),
+            optional_spaces()
+                .with(host_elements6())
+                .map(Part::String)
+                .right(),
+        ]),
+        attempt(optional_spaces().skip(ignore(comma()).or(eof()))),
+    )
+    .and_then(|xs: Vec<_>| {
+        if xs.is_empty() {
+            Err(StreamErrorFor::<I>::unexpected_static_message(
+                "no host found",
+            ))
+        } else if xs.cardinality() > CARDINALITY_THRESHOLD {
+            Err(StreamErrorFor::<I>::unexpected_static_message(
+                "cardinality overflow",
+            ))
+        } else {
+            Ok(xs)
+        }
+    })
+}
+
 fn hostlists<I>() -> impl Parser<I, Output = Vec<Vec<Part>>>
 where
     I: Stream<Token = char>,
     I::Error: ParseError<I::Token, I::Range, I::Position>,
 {
-    sep_by1(hostlist(), optional_spaces().with(comma()))
+    sep_by1(
+        choice([hostlist4().left(), hostlist6().right()]),
+        optional_spaces().with(comma()),
+    )
 }
 
 pub fn parse(input: &str) -> Result<Vec<String>, combine::stream::easy::Errors<char, &str, usize>> {
@@ -292,9 +436,9 @@ mod tests {
 
     #[test]
     fn test_hostlist() {
-        assert_debug_snapshot!(hostlist().easy_parse("oss1.local"));
-        assert_debug_snapshot!(hostlist().easy_parse("oss[1,2].local"));
-        assert_debug_snapshot!(hostlist().easy_parse(
+        assert_debug_snapshot!(hostlist4().easy_parse("oss1.local"));
+        assert_debug_snapshot!(hostlist4().easy_parse("oss[1,2].local"));
+        assert_debug_snapshot!(hostlist4().easy_parse(
             "hostname[2,6,7].iml.com,hostname[10,11-12,2-3,5].iml.com,hostname[15-17].iml.com"
         ));
     }
@@ -379,7 +523,12 @@ mod tests {
             )
         );
 
-        assert_debug_snapshot!("Multiple ranges per hostname in which the difference is 1", parse("hostname[1,2-3].iml[2,3].com,hostname[3,4,5].iml[2,3].com,hostname[5-6,7].iml[2,3].com"));
+        assert_debug_snapshot!(
+            "Multiple ranges per hostname in which the difference is 1",
+            parse(
+                "hostname[1,2-3].iml[2,3].com,hostname[3,4,5].iml[2,3].com,hostname[5-6,7].iml[2,3].com"
+            )
+        );
 
         assert_debug_snapshot!(
             "Multiple ranges per hostname in which the difference is 1 two formats",
@@ -491,5 +640,33 @@ mod tests {
 
     fn test_parse_osts() {
         assert_debug_snapshot!("Leading 0s", parse("OST01[00,01]"));
+    }
+
+    #[test]
+    fn test_parse_ip_addresses() {
+        assert_debug_snapshot!("IPv4 single", parse("192.168.0.1"));
+        assert_debug_snapshot!("IPv6 compressed", parse("2001:db8::1"));
+        assert_debug_snapshot!(
+            "IPv6 full",
+            parse("fe80:1234:5678:9abc:def0:1234:5678:9abc")
+        );
+        assert_debug_snapshot!("Multiple IPv6 literals", parse("2001:db8::1, 2001:db8::2"));
+        assert_debug_snapshot!("IPv6 expansion", parse("2001:db8::[0-f]"));
+        assert_debug_snapshot!("IPv6 expansion with base 16", parse("2001:db8::[00-10]"));
+        assert_debug_snapshot!(
+            "IPv6 expansion with multiple ranges",
+            parse("2001:db[0-8]::[00-10]:1")
+        );
+
+        assert_debug_snapshot!("IPv4 with v6 range", parse("192.168.0.[0-f]").unwrap_err());
+    }
+
+    #[test]
+    fn test_parse_capacity() {
+        assert_debug_snapshot!("IPv6 expansion valid", parse("2001:db8::[0000-ffff]"));
+        assert_debug_snapshot!(
+            "IPv6 expansion overflow",
+            parse("2001:db8::[0-f]:[0000-ffff]").unwrap_err()
+        );
     }
 }

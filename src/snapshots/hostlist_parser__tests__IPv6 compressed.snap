@@ -1,0 +1,9 @@
+---
+source: src/lib.rs
+expression: "parse(\"2001:db8::1\")"
+---
+Ok(
+    [
+        "2001:db8::1",
+    ],
+)
